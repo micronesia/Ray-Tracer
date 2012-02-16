@@ -9,6 +9,16 @@ class sphere:
         self.center=center #center is a /point/ as defined in mymathutils
         self.type = 'sphere' #temporarily adding a type in order to avoid a more generalized surface class; can removes this later on
 
+class triangle:
+    """A triangle in tridimension space
+    Has a color and three corner points"""
+    def __init__(self, color, p1, p2, p3):
+        self.color=float(color)
+        self.p1=p1
+        self.p2=p2
+        self.p3=p3
+        self.type = 'triangle'
+
 world = [] #List of all the objects that exist in the 'world'
 
 (eye_x,eye_y,eye_z)=(0,0,200) # eye should be located on the positive z side of 3d space; x=0,y=0 are obvious choices
@@ -64,7 +74,11 @@ def first_hit (pt, uv_x, uv_y, uv_z):
 
 def lambert (surface, intercept, uv_x, uv_y, uv_z):
     """Returns the proper color by taking the dot product of the sent ray and the normal of the surface"""
-    (x_normal,y_normal,z_normal) = normal(surface, intercept)
+    if surface.type == 'sphere':
+        (x_normal,y_normal,z_normal) = surface_normal(surface, intercept)
+    if surface.type == 'triangle':
+        blah = surface_normal(surface, intercept)
+        (x_normal,y_normal,z_normal) = (blah.x,blah.y,blah.z)
     return max(0, x_normal*uv_x + y_normal*uv_y + z_normal*uv_z)
 
 def create_sphere(x, y, z, r, c):
@@ -73,10 +87,18 @@ def create_sphere(x, y, z, r, c):
     world.append(mysphere)
     return mysphere
 
+def create_triangle(p1, p2, p3, c):
+    """Appends the triangle to the world list, given the three corner points and the color"""
+    mytriangle = triangle(c, p1, p2, p3)
+    world.append(mytriangle)
+    return mytriangle
+
 def intersect (surface, pt, uv_x, uv_y, uv_z):
     """Determines and calls the proper intersect function for the type of surface that is passed in"""
     if surface.type == 'sphere':
         return sphere_intersect(surface, pt, uv_x, uv_y, uv_z)
+    if surface.type == 'triangle':
+        return triangle_intersect(surface, pt, uv_x, uv_y, uv_z)
 
 def sphere_intersect (sphere, pt, uv_x, uv_y, uv_z):
     """Given the sphere and the sent ray, determines and returns the point of intersection (if any), favoring the closer intersection"""
@@ -90,19 +112,64 @@ def sphere_intersect (sphere, pt, uv_x, uv_y, uv_z):
     if n:
         return point(pt.x + uv_x * n, pt.y + uv_y * n, pt.z + uv_z * n)
 
-def normal (surface, pt):
+def triangle_intersect (triangle, pt, uv_x, uv_y, uv_z):
+    """Given the triangle and the sent ray, determines and returns the point of intersection (if any)"""
+    dist2plane = dist_to_plane(triangle_normal(triangle),triangle.p1,pt) #Using the triangle's p1 as the point on the plane
+    sentray = point(dist2plane*uv_x,dist2plane*uv_y,dist2plane*uv_z) #multiplies unit vector times distance to plane to get a vector
+    plane_intercept = point(eye.x+sentray.x,eye.y+sentray.y,eye.z+sentray.z) #point where sent ray intersects triangle's plane
+    #Now it is necessary to determine if the point is within the triangle or not
+    if inside_triangle(triangle, plane_intercept, sentray):
+        return plane_intercept
+
+def inside_triangle(triangle, pt4, sentray):
+    """Returns true if the point is within the triangle (pt4 should already be on the same plane)"""
+    if triangle_test(triangle.p1,triangle.p2,triangle.p3,pt4,sentray):
+        if triangle_test(triangle.p2,triangle.p3,triangle.p1,pt4,sentray):
+            if triangle_test(triangle.p3,triangle.p1,triangle.p2,pt4,sentray):
+                return True
+
+def triangle_test(p1,p2,p3,p4,sentray):
+    p12 = point(p2.x-p1.x,p2.y-p1.y,p2.z-p1.z)
+    p13 = point(p3.x-p1.x,p3.y-p1.y,p3.z-p1.z)
+    normal = determ(p12,p13)
+    if dotprod(sentray,normal) > 0:
+        normal.x = -normal.x
+        normal.y = -normal.y
+        normal.z = -normal.z
+    p12perp = determ(p12,normal)
+    p12perp_length = magnitude(p12perp.x,p12perp.y,p12perp.z)
+    p12perp = point(p12perp.x/p12perp_length,p12perp.y/p12perp_length,p12perp.z/p12perp_length)
+    a = distance(p1,p2)
+    b = distance(p2,p3)
+    c = distance(p3,p1)
+    s = (a+b+c)/2 #setup for Heron math
+    altitude = (2/a)*sqrt(s*(s-a)*(s-b)*(s-c))
+    altitude_vector = point(altitude*p12perp.x,altitude*p12perp.y,altitude*p12perp.z)
+    foot = point((p3.x-altitude_vector.x)/2,(p3.y-altitude_vector.y)/2,(p3.z-altitude_vector.z)/2)
+    footp3 = point(p3.x-foot.x,p3.y-foot.y,p3.z-foot.z)
+    footp4 = point(p4.x-foot.x,p4.y-foot.y,p4.z-foot.z)
+    if dotprod(footp3,footp4) > 0:
+        return True    
+
+def surface_normal (surface, pt):
     """Determines and calls the proper normal function for the type of surface that is bassed in"""
     if surface.type == 'sphere':
         return sphere_normal(surface,pt)
+    if surface.type == 'triangle':
+        return triangle_normal(surface)
 
 def sphere_normal(surface, pt):
     c = surface.center
     (vect_x,vect_y,vect_z)=(c.x-pt.x,c.y-pt.y,c.z-pt.z)
     return unit_vector(vect_x,vect_y,vect_z)
 
+def triangle_normal(surface):
+    mynormal = normal(surface.p1, surface.p2, surface.p3)
+    return point(mynormal.x,mynormal.y,mynormal.z)
+
 def myraytest ():
     world = []
-    create_sphere(0,0,-1200,200,.8)
+    create_triangle(point(-25,-25,100),point(-25,25,100),point(25,0,100),0.8)
 
 if __name__ == '__main__': #boilerplate code to run main if I execute this script
-    main(res_factor=6)
+    main(res_factor=4)

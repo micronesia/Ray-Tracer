@@ -34,3 +34,27 @@ def minroot (a, b, c):
             x1 = (-b+sqrt(discrim))/(2*a)
             x2 = (-b-sqrt(discrim))/(2*a)
             return min(x1,x2)
+
+def determ (p1, p2):
+    """Returns p1 x p2 where p1 and p2 are points being used as vectors"""
+    i = p1.y*p2.z-p2.y*p1.z
+    j = p1.z*p2.x-p2.z*p1.x
+    k = p1.x*p2.y-p2.x*p1.y
+    return point(i, j, k)
+
+def normal (p1, p2, p3):
+    """Returns a unit vector of the normal of a triangle"""
+    p12 = point(p2.x-p1.x,p2.y-p1.y,p2.z-p1.z)
+    p13 = point(p3.x-p1.x,p3.y-p1.y,p3.z-p1.z)
+    normal_vector = determ(p12,p13)
+    normal_size = magnitude(normal_vector.x, normal_vector.y, normal_vector.z)
+    return point(normal_vector.x/normal_size, normal_vector.y/normal_size, normal_vector.z/normal_size)
+
+def dotprod (p1, p2):
+    """Returns the dot product of p1 and p2 (points)"""
+    return p1.x*p2.x+p1.y*p2.y+p1.z*p2.z
+
+def dist_to_plane (normal_vector, point_on_plane, p4):
+    """Returns the distance between a point 'called point' and a plane represented by the point 'point_on_plane' and unit normal vector 'normal'"""
+    point_to_plane = point(point_on_plane.x-p4.x, point_on_plane.y-p4.y, point_on_plane.z-p4.z)
+    return abs(dotprod(normal_vector, point_to_plane))
